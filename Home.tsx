@@ -19,6 +19,8 @@ import {
   PenSquare,
   Undo2,
   Eraser,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { GoogleGenAI, Modality, Part as GenaiPart } from '@google/genai';
 import ReactMarkdown from 'react-markdown';
@@ -105,7 +107,7 @@ const PlanCarousel = ({ plan2D, plan3D, exportImage, isDesktop }) => {
         <img
           src={currentPlan === '2D' ? plan2D : plan3D}
           alt={currentPlan === '2D' ? '2D Plan' : '3D View'}
-          className="rounded-xl w-full aspect-[4/3] object-cover bg-gray-100"
+          className="rounded-xl w-full aspect-[4/3] object-cover bg-gray-100 dark:bg-gray-800"
         />
         <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-xs font-semibold px-2 py-1 rounded-full">
           {currentPlan === '2D' ? '2D Floor Plan' : '3D Exterior View'}
@@ -113,7 +115,7 @@ const PlanCarousel = ({ plan2D, plan3D, exportImage, isDesktop }) => {
         <button
           onClick={() => exportImage(currentPlan === '2D' ? plan2D : plan3D, `${currentPlan}_Plan.png`)}
           className={cn(
-            "absolute top-2 right-2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all",
+            "absolute top-2 right-2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all dark:bg-gray-800/80 dark:text-gray-200 dark:hover:bg-gray-700",
             isDesktop ? "opacity-0 group-hover:opacity-100" : "opacity-100"
           )}
           aria-label={`Download ${currentPlan} Plan`}
@@ -124,7 +126,7 @@ const PlanCarousel = ({ plan2D, plan3D, exportImage, isDesktop }) => {
           onClick={() => setCurrentPlan('2D')}
           disabled={currentPlan === '2D'}
           className={cn(
-            "absolute top-1/2 left-2 -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all disabled:opacity-20 disabled:cursor-not-allowed",
+            "absolute top-1/2 left-2 -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all disabled:opacity-20 disabled:cursor-not-allowed dark:bg-gray-800/80 dark:text-gray-200 dark:hover:bg-gray-700",
             isDesktop ? "opacity-0 group-hover:opacity-100" : "opacity-100"
           )}
           aria-label="Show 2D Plan"
@@ -135,7 +137,7 @@ const PlanCarousel = ({ plan2D, plan3D, exportImage, isDesktop }) => {
           onClick={() => setCurrentPlan('3D')}
           disabled={currentPlan === '3D'}
           className={cn(
-            "absolute top-1/2 right-2 -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all disabled:opacity-20 disabled:cursor-not-allowed",
+            "absolute top-1/2 right-2 -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all disabled:opacity-20 disabled:cursor-not-allowed dark:bg-gray-800/80 dark:text-gray-200 dark:hover:bg-gray-700",
             isDesktop ? "opacity-0 group-hover:opacity-100" : "opacity-100"
           )}
           aria-label="Show 3D View"
@@ -153,12 +155,12 @@ const PlanCarousel = ({ plan2D, plan3D, exportImage, isDesktop }) => {
 
   return (
     <div className="mt-2 w-full max-w-lg relative group">
-      <img src={plan} alt={planLabel} className="rounded-xl w-full aspect-[4/3] object-cover bg-gray-100"/>
+      <img src={plan} alt={planLabel} className="rounded-xl w-full aspect-[4/3] object-cover bg-gray-100 dark:bg-gray-800"/>
       <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-xs font-semibold px-2 py-1 rounded-full">{planLabel}</div>
       <button
         onClick={() => exportImage(plan, `${planType}_Plan.png`)}
         className={cn(
-          "absolute top-2 right-2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all",
+          "absolute top-2 right-2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all dark:bg-gray-800/80 dark:text-gray-200 dark:hover:bg-gray-700",
           isDesktop ? "opacity-0 group-hover:opacity-100" : "opacity-100"
         )}
         aria-label={`Download ${planLabel}`}
@@ -185,7 +187,7 @@ export default function Home() {
   const [isDesktop, setIsDesktop] = useState(false);
   const [exploreMessage, setExploreMessage] = useState<ChatMessage | null>(null);
   const [editingPlan, setEditingPlan] = useState<ChatMessage | null>(null);
-
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -208,6 +210,14 @@ export default function Home() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({behavior: 'smooth'});
   }, [chatHistory, isLoading]);
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
 
   useEffect(() => {
     if (isLoading) {
@@ -321,20 +331,13 @@ export default function Home() {
     setLoadingMessage(LOADING_MESSAGES[0]);
 
     let historyForGeneration: ChatMessage[];
-    let geminiParts: GenaiPart[] = [];
     
-    // Add text part
-    if (userMessageText) {
-        geminiParts.push({ text: userMessageText });
-    }
-
     if (isEditing) {
         const editIndex = editingMessageIndex!;
         const updatedHistory = [...chatHistory];
         
-        // Find the text part and update it, preserve image parts if any
         let textPartFound = false;
-        updatedHistory[editIndex].parts = updatedHistory[editIndex].parts.map(p => {
+        const newParts = updatedHistory[editIndex].parts.map(p => {
             if(p.text !== undefined) {
                 textPartFound = true;
                 return { ...p, text: userMessageText };
@@ -342,38 +345,16 @@ export default function Home() {
             return p;
         });
         if(!textPartFound){
-             updatedHistory[editIndex].parts.unshift({ text: userMessageText });
+             newParts.unshift({ text: userMessageText });
         }
+        updatedHistory[editIndex] = { ...updatedHistory[editIndex], parts: newParts };
 
-        // We only want to regenerate from this point, so we truncate the history
         historyForGeneration = updatedHistory.slice(0, editIndex + 1);
         setChatHistory(historyForGeneration);
 
     } else {
-        // For a new message, add uploaded image
-        if (uploadedImage) {
-            const { mimeType, data } = dataURLtoBase64(uploadedImage);
-            if (mimeType && data) {
-                geminiParts.push({ inlineData: { mimeType, data } });
-            }
-        }
-        // For a reply, add the images from the message being replied to
-        if (replyingToMessage) {
-            const imageParts = replyingToMessage.parts.filter(p => p.plan2D || p.plan3D);
-            for (const part of imageParts) {
-                const imgSrc = part.plan2D || part.plan3D;
-                if(imgSrc){
-                    const { mimeType, data } = dataURLtoBase64(imgSrc);
-                    if (mimeType && data) {
-                        geminiParts.push({ inlineData: { mimeType, data } });
-                    }
-                }
-            }
-        }
-        
         const userParts: Part[] = [];
         if (userMessageText) userParts.push({ text: userMessageText });
-        // Use plan2D for user-uploaded image preview
         if (uploadedImage) userParts.push({ plan2D: uploadedImage });
 
         const currentUserMessage: ChatMessage = { role: 'user', parts: userParts };
@@ -388,7 +369,46 @@ export default function Home() {
     setReplyingToMessage(null);
 
     try {
-        const architectSystemInstruction = `You are Qbit Architect, a world-class AI specializing in generating architectural designs. Your primary function is to create and present architectural plans.
+      const contentsForApi = historyForGeneration.map(message => {
+        const apiParts: GenaiPart[] = [];
+        for (const part of message.parts) {
+            if (part.text) {
+                apiParts.push({ text: part.text });
+            }
+            if (part.plan2D) { // Handles user upload and model 2D plan
+                const { mimeType, data } = dataURLtoBase64(part.plan2D);
+                if (mimeType && data) {
+                    apiParts.push({ inlineData: { mimeType, data } });
+                }
+            }
+            if (part.plan3D) { // Handles model 3D plan
+                const { mimeType, data } = dataURLtoBase64(part.plan3D);
+                if (mimeType && data) {
+                    apiParts.push({ inlineData: { mimeType, data } });
+                }
+            }
+        }
+        return { role: message.role, parts: apiParts };
+      }).filter(message => message.parts.length > 0);
+
+      // Handle replies by adding context images to the last (current user) message
+      if (replyingToMessage && !isEditing) {
+          const lastMessage = contentsForApi[contentsForApi.length - 1];
+          if (lastMessage && lastMessage.role === 'user') {
+              const imageParts = replyingToMessage.parts
+                  .filter(p => p.plan2D || p.plan3D)
+                  .flatMap(p => [p.plan2D, p.plan3D].filter(Boolean) as string[]);
+              
+              for (const imgSrc of imageParts) {
+                  const { mimeType, data } = dataURLtoBase64(imgSrc);
+                  if (mimeType && data) {
+                      lastMessage.parts.push({ inlineData: { mimeType, data } });
+                  }
+              }
+          }
+      }
+
+      const architectSystemInstruction = `You are Qbit Architect, a world-class AI specializing in generating architectural designs. Your primary function is to create and present architectural plans.
 
 **CRITICAL INSTRUCTIONS:** For any user request that involves designing a building, house, structure, or plan, you MUST generate and output exactly TWO images in the following specific formats:
 
@@ -416,7 +436,7 @@ Always use markdown for clear text formatting.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image-preview',
-            contents: { parts: geminiParts },
+            contents: contentsForApi,
             config: {
                 systemInstruction,
                 responseModalities: [Modality.IMAGE, Modality.TEXT],
@@ -493,11 +513,11 @@ Always use markdown for clear text formatting.`;
           {/* Avatar */}
           <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-sm mt-1">
             {isUser ? (
-              <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-gray-400 dark:bg-gray-600 rounded-full flex items-center justify-center">
                 <User size={16} />
               </div>
             ) : (
-              <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-black dark:bg-gray-700 rounded-full flex items-center justify-center">
                 <Sparkles size={16} />
               </div>
             )}
@@ -510,10 +530,10 @@ Always use markdown for clear text formatting.`;
                 {part.text && (
                   <div
                     className={cn(
-                      'rounded-2xl px-4 py-3 max-w-none prose',
+                      'rounded-2xl px-4 py-3 max-w-none prose dark:prose-dark',
                       isUser
-                        ? 'bg-gray-100 text-gray-900 ml-auto'
-                        : 'bg-transparent text-gray-900'
+                        ? 'bg-gray-100 text-gray-900 ml-auto dark:bg-gray-800 dark:text-gray-100'
+                        : 'bg-transparent text-gray-900 dark:text-gray-100'
                     )}
                   >
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{part.text}</ReactMarkdown>
@@ -537,20 +557,20 @@ Always use markdown for clear text formatting.`;
                 isDesktop ? "opacity-0 group-hover:opacity-100" : "opacity-100"
               )}>
                 {isUser && !isLoading && (
-                    <button onClick={() => handleStartEdit(index)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-800" aria-label="Edit message">
+                    <button onClick={() => handleStartEdit(index)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-800 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-200" aria-label="Edit message">
                         <Edit2 size={14} />
                     </button>
                 )}
                 {!isUser && hasGenerations && !isLoading &&(
                     <>
-                        <button onClick={() => handleStartReply(msg)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-800" aria-label="Refine this design">
+                        <button onClick={() => handleStartReply(msg)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-800 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-200" aria-label="Refine this design">
                             <CornerUpLeft size={14} />
                         </button>
-                        <button onClick={() => handleStartPlanEdit(msg)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-800" aria-label="Edit this plan">
+                        <button onClick={() => handleStartPlanEdit(msg)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-800 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-200" aria-label="Edit this plan">
                             <PenSquare size={14} />
                         </button>
                         {isDesktop && (
-                             <button onClick={() => handleStartExplore(msg)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-800" aria-label="Explore in 3D">
+                             <button onClick={() => handleStartExplore(msg)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-800 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-200" aria-label="Explore in 3D">
                                 <View size={14} />
                             </button>
                         )}
@@ -699,40 +719,40 @@ const ExploreViewModal = ({ message, onClose }) => {
     if(!plan2D) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fade-in">
+        <div className="fixed inset-0 bg-black/80 dark:bg-black/90 flex items-center justify-center z-50 p-4 animate-fade-in">
              <canvas ref={canvasRef} className="hidden"></canvas>
-            <div className="bg-white w-full h-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col">
-                <header className="flex items-center justify-between p-4 border-b">
-                    <h2 className="text-lg font-semibold">3D Interior Explorer</h2>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
+            <div className="bg-white dark:bg-gray-900 w-full h-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col">
+                <header className="flex items-center justify-between p-4 border-b dark:border-gray-700">
+                    <h2 className="text-lg font-semibold dark:text-gray-100">3D Interior Explorer</h2>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-300">
                         <X size={20} />
                     </button>
                 </header>
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 overflow-y-auto">
                     <div className="flex flex-col gap-2 items-center">
-                        <h3 className="text-sm text-gray-600">Click on the 2D plan to generate an interior view</h3>
+                        <h3 className="text-sm text-gray-600 dark:text-gray-400">Click on the 2D plan to generate an interior view</h3>
                         <img 
                             src={plan2D} 
                             alt="2D Plan" 
-                            className="w-full h-auto object-contain rounded-lg cursor-pointer border"
+                            className="w-full h-auto object-contain rounded-lg cursor-pointer border dark:border-gray-700"
                             onClick={handlePlanClick}
                         />
                     </div>
-                    <div className="flex items-center justify-center bg-gray-50 rounded-lg border">
+                    <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg border dark:border-gray-700">
                         {isLoading && (
-                            <div className="flex flex-col items-center gap-2 text-gray-600 text-center px-4">
+                            <div className="flex flex-col items-center gap-2 text-gray-600 dark:text-gray-400 text-center px-4">
                                 <LoaderCircle size={32} className="animate-spin" />
                                 <p>{interiorLoadingMessage}</p>
                             </div>
                         )}
                         {error && (
-                             <div className="flex flex-col items-center gap-2 text-red-600 p-4">
+                             <div className="flex flex-col items-center gap-2 text-red-600 dark:text-red-500 p-4">
                                 <p><strong>Generation Failed</strong></p>
                                 <p className="text-sm text-center">{error}</p>
                             </div>
                         )}
                         {!isLoading && !error && !interiorImage && (
-                            <div className="text-center text-gray-500">
+                            <div className="text-center text-gray-500 dark:text-gray-400">
                                 <p>3D Interior View will appear here.</p>
                             </div>
                         )}
@@ -908,18 +928,18 @@ Your output must strictly follow this 2-image format. Accompany the images with 
     if(!plan2D) return null;
 
     return (
-      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fade-in">
-        <div className="bg-white w-full h-full max-w-6xl max-h-[95vh] rounded-2xl shadow-2xl flex flex-col">
-          <header className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold flex items-center gap-2"><PenSquare size={20} /> Edit Plan</h2>
-              <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
+      <div className="fixed inset-0 bg-black/80 dark:bg-black/90 flex items-center justify-center z-50 p-4 animate-fade-in">
+        <div className="bg-white dark:bg-gray-900 w-full h-full max-w-6xl max-h-[95vh] rounded-2xl shadow-2xl flex flex-col">
+          <header className="flex items-center justify-between p-4 border-b dark:border-gray-700">
+              <h2 className="text-lg font-semibold flex items-center gap-2 dark:text-gray-100"><PenSquare size={20} /> Edit Plan</h2>
+              <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-300">
                   <X size={20} />
               </button>
           </header>
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 overflow-y-auto">
               <div className="flex flex-col gap-2">
-                 <p className="text-sm text-center text-gray-600">Draw on the 2D plan to mark your changes</p>
-                 <div className="w-full aspect-square bg-gray-100 rounded-lg overflow-hidden border">
+                 <p className="text-sm text-center text-gray-600 dark:text-gray-400">Draw on the 2D plan to mark your changes</p>
+                 <div className="w-full aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden border dark:border-gray-700">
                     <canvas 
                         ref={canvasRef}
                         onMouseDown={startDrawing}
@@ -933,10 +953,10 @@ Your output must strictly follow this 2-image format. Accompany the images with 
                <div className="flex flex-col gap-4">
                   {/* Drawing Tools */}
                   <div>
-                    <h3 className="text-sm font-medium mb-2 text-gray-700">Drawing Tools</h3>
-                    <div className="flex items-center gap-4 p-2 bg-gray-100 rounded-lg">
+                    <h3 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Drawing Tools</h3>
+                    <div className="flex items-center gap-4 p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
                         <div className="flex items-center gap-2">
-                            <label className="text-xs">Color:</label>
+                            <label className="text-xs dark:text-gray-300">Color:</label>
                             <div className="flex items-center gap-1.5">
                                 <button onClick={() => setBrushColor('#EF4444')} className={cn('w-6 h-6 rounded-full bg-red-500 tool-btn', {'tool-btn-active': brushColor === '#EF4444'})} aria-label="Red brush"></button>
                                 <button onClick={() => setBrushColor('#3B82F6')} className={cn('w-6 h-6 rounded-full bg-blue-500 tool-btn', {'tool-btn-active': brushColor === '#3B82F6'})} aria-label="Blue brush"></button>
@@ -944,24 +964,24 @@ Your output must strictly follow this 2-image format. Accompany the images with 
                             </div>
                         </div>
                          <div className="flex items-center gap-2">
-                            <label className="text-xs">Size:</label>
+                            <label className="text-xs dark:text-gray-300">Size:</label>
                             <input type="range" min="1" max="20" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="w-24" />
                         </div>
-                        <div className="flex items-center gap-2 ml-auto">
-                            <button onClick={handleUndo} className="p-2 rounded-md hover:bg-gray-200" aria-label="Undo"><Undo2 size={16}/></button>
-                            <button onClick={handleClear} className="p-2 rounded-md hover:bg-gray-200" aria-label="Clear drawing"><Eraser size={16}/></button>
+                        <div className="flex items-center gap-2 ml-auto dark:text-gray-300">
+                            <button onClick={handleUndo} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" aria-label="Undo"><Undo2 size={16}/></button>
+                            <button onClick={handleClear} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" aria-label="Clear drawing"><Eraser size={16}/></button>
                         </div>
                     </div>
                   </div>
 
                   {/* Prompt */}
                   <div className="flex flex-col flex-1">
-                      <h3 className="text-sm font-medium mb-2 text-gray-700">Describe Your Changes</h3>
+                      <h3 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Describe Your Changes</h3>
                       <textarea 
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         placeholder="e.g., 'Make this wall a large glass window and add a door to the patio here.'"
-                        className="w-full flex-1 p-3 text-sm border rounded-lg resize-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full flex-1 p-3 text-sm border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
                       />
                   </div>
 
@@ -974,9 +994,9 @@ Your output must strictly follow this 2-image format. Accompany the images with 
                         >
                           {isLoading ? <LoaderCircle size={18} className="animate-spin" /> : 'Generate Revised Plan'}
                        </button>
-                       <button onClick={onClose} className="py-3 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancel</button>
+                       <button onClick={onClose} className="py-3 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">Cancel</button>
                    </div>
-                   {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+                   {error && <p className="text-sm text-red-600 dark:text-red-500 text-center">{error}</p>}
                </div>
           </div>
         </div>
@@ -985,29 +1005,29 @@ Your output must strictly follow this 2-image format. Accompany the images with 
   }
 
   return (
-    <div className="flex h-screen w-screen bg-white">
+    <div className="flex h-screen w-screen bg-white dark:bg-gray-950">
       <main className="flex-1 flex flex-col h-screen">
         {/* Header */}
         <header className="flex items-center justify-between p-4 md:p-6">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-black dark:bg-gray-800 rounded-full flex items-center justify-center">
               <Sparkles className="text-white" size={18} />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">Qbit Architect</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Qbit Architect</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 AI Architectural Design Partner
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-full">
+            <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-full">
                 <button 
                     onClick={() => setMode('architect')} 
                     className={cn(
                         'flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-colors',
-                        mode === 'architect' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 hover:bg-gray-200'
+                        mode === 'architect' ? 'bg-white shadow-sm text-gray-900 dark:bg-gray-700 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700/60'
                     )}
                     aria-pressed={mode === 'architect'}
                 >
@@ -1017,7 +1037,7 @@ Your output must strictly follow this 2-image format. Accompany the images with 
                     onClick={() => setMode('chat')} 
                     className={cn(
                         'flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-colors',
-                        mode === 'chat' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 hover:bg-gray-200'
+                        mode === 'chat' ? 'bg-white shadow-sm text-gray-900 dark:bg-gray-700 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700/60'
                     )}
                     aria-pressed={mode === 'chat'}
                 >
@@ -1027,11 +1047,14 @@ Your output must strictly follow this 2-image format. Accompany the images with 
             <button
               onClick={handleClearChat}
               disabled={chatHistory.length <= 1}
-              className="hidden md:flex items-center gap-2 px-4 py-2 text-sm text-gray-600 rounded-full hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="hidden md:flex items-center gap-2 px-4 py-2 text-sm text-gray-600 rounded-full hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:text-gray-400 dark:hover:bg-gray-800"
               aria-label="Clear chat history"
             >
               <Trash2 size={16} />
               <span>Clear Chat</span>
+            </button>
+            <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="p-2 rounded-full text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800" aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+                {theme === 'light' ? <Moon size={18}/> : <Sun size={18}/>}
             </button>
           </div>
         </header>
@@ -1044,17 +1067,17 @@ Your output must strictly follow this 2-image format. Accompany the images with 
               <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
                 {/* Welcome Message */}
                 <div className="mb-12">
-                  <h1 className="text-5xl md:text-6xl font-normal text-gray-900 mb-6 leading-tight">
+                  <h1 className="text-5xl md:text-6xl font-normal text-gray-900 dark:text-gray-100 mb-6 leading-tight">
                     What's on your mind today?
                   </h1>
-                  <p className="text-lg text-gray-600 max-w-2xl">
+                  <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl">
                     I'm Qbit Architect, your AI design partner. I can help you create stunning architectural plans and visualizations.
                   </p>
                 </div>
 
                 {/* Feature Pills */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl">
-                  <div className="flex items-center gap-3 bg-blue-50 text-blue-700 px-4 py-3 rounded-2xl">
+                  <div className="flex items-center gap-3 bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 px-4 py-3 rounded-2xl">
                     <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
                         <path d="M3 21h18"/>
@@ -1065,7 +1088,7 @@ Your output must strictly follow this 2-image format. Accompany the images with 
                     <span className="text-sm font-medium">2D Floor Plans</span>
                   </div>
 
-                  <div className="flex items-center gap-3 bg-green-50 text-green-700 px-4 py-3 rounded-2xl">
+                  <div className="flex items-center gap-3 bg-green-50 text-green-700 dark:bg-green-900/50 dark:text-green-300 px-4 py-3 rounded-2xl">
                     <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
                         <path d="M12 2L2 7v10c0 5.55 3.84 10 9 9 5.16 1 9-3.45 9-9V7l-10-5z"/>
@@ -1076,7 +1099,7 @@ Your output must strictly follow this 2-image format. Accompany the images with 
                     <span className="text-sm font-medium">3D Renderings</span>
                   </div>
 
-                  <div className="flex items-center gap-3 bg-purple-50 text-purple-700 px-4 py-3 rounded-2xl">
+                  <div className="flex items-center gap-3 bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 px-4 py-3 rounded-2xl">
                     <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
                         <circle cx="12" cy="12" r="3"/>
@@ -1087,7 +1110,7 @@ Your output must strictly follow this 2-image format. Accompany the images with 
                     <span className="text-sm font-medium">Custom Designs</span>
                   </div>
 
-                  <div className="flex items-center gap-3 bg-orange-50 text-orange-700 px-4 py-3 rounded-2xl">
+                  <div className="flex items-center gap-3 bg-orange-50 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300 px-4 py-3 rounded-2xl">
                     <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
                         <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
@@ -1108,10 +1131,10 @@ Your output must strictly follow this 2-image format. Accompany the images with 
             {isLoading && (
               <div className="flex w-full mb-6 justify-start">
                 <div className="flex max-w-[80%] gap-3">
-                  <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 bg-black dark:bg-gray-700 rounded-full flex items-center justify-center">
                     <Sparkles size={16} className="text-white" />
                   </div>
-                  <div className="bg-transparent text-gray-900 rounded-2xl px-4 py-3 flex items-center gap-3">
+                  <div className="bg-transparent text-gray-900 dark:text-gray-100 rounded-2xl px-4 py-3 flex items-center gap-3">
                     <LoaderCircle className="animate-spin" size={18} />
                     <span className="text-sm">{loadingMessage}</span>
                   </div>
@@ -1123,7 +1146,7 @@ Your output must strictly follow this 2-image format. Accompany the images with 
         </div>
 
         {/* Input Area */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white">
+        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-950">
           <div className="max-w-4xl mx-auto p-6">
             {/* Prompt Suggestions Carousel */}
             {chatHistory.length <= 1 && !isLoading && mode === 'architect' && (
@@ -1137,7 +1160,7 @@ Your output must strictly follow this 2-image format. Accompany the images with 
                         textareaRef.current?.focus();
                         setTimeout(() => adjustHeight(), 0);
                       }}
-                      className="flex-shrink-0 px-4 py-2 bg-gray-50 text-gray-600 rounded-full text-sm font-medium hover:bg-gray-100 transition-colors"
+                      className="flex-shrink-0 px-4 py-2 bg-gray-50 text-gray-600 rounded-full text-sm font-medium hover:bg-gray-100 transition-colors dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                     >
                       {suggestion}
                     </button>
@@ -1148,16 +1171,16 @@ Your output must strictly follow this 2-image format. Accompany the images with 
             
             {/* Status indicators for editing or replying */}
             {editingMessageIndex !== null && (
-                <div className="text-sm text-gray-600 mb-2 px-2 flex items-center gap-2">
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 px-2 flex items-center gap-2">
                     <Edit2 size={14} /> Editing message...
                 </div>
             )}
              {replyingToMessage && (
-                <div className="text-sm text-gray-600 mb-2 px-2 flex items-center justify-between bg-gray-100 rounded-full py-1">
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 px-2 flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-full py-1">
                     <span className="flex items-center gap-2 pl-2">
                         <CornerUpLeft size={14} /> Replying to design...
                     </span>
-                    <button onClick={() => setReplyingToMessage(null)} className="p-1 rounded-full hover:bg-gray-200 mr-1" aria-label="Cancel reply">
+                    <button onClick={() => setReplyingToMessage(null)} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 mr-1" aria-label="Cancel reply">
                         <X size={16} />
                     </button>
                 </div>
@@ -1184,13 +1207,13 @@ Your output must strictly follow this 2-image format. Accompany the images with 
             )}
             
             {/* Input Container */}
-            <div className="relative flex items-center bg-gray-100 rounded-3xl px-4 py-2">
+            <div className="relative flex items-center bg-gray-100 dark:bg-gray-800 rounded-3xl px-4 py-2">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-shrink-0 p-2 rounded-full hover:bg-gray-200 transition-colors"
+                className="flex-shrink-0 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 aria-label="Add attachment"
               >
-                <Plus size={20} className="text-gray-600" />
+                <Plus size={20} className="text-gray-600 dark:text-gray-400" />
               </button>
               
               <input
@@ -1220,7 +1243,7 @@ Your output must strictly follow this 2-image format. Accompany the images with 
                     : "Ask about architecture or design ideas..."
                 }
                 rows={1}
-                className="flex-1 mx-3 bg-transparent resize-none outline-none text-gray-900 placeholder-gray-500 text-sm"
+                className="flex-1 mx-3 bg-transparent resize-none outline-none text-gray-900 placeholder-gray-500 text-sm dark:text-gray-50 dark:placeholder-gray-400"
                 style={{height: '24px'}}
               />
               
@@ -1252,11 +1275,11 @@ Your output must strictly follow this 2-image format. Accompany the images with 
                         ? 'bg-gray-300 cursor-not-allowed'
                         : !inputValue.trim() && !uploadedImage
                         ? 'bg-gray-300 cursor-not-allowed'
-                        : 'bg-black hover:bg-gray-800 text-white'
+                        : 'bg-black hover:bg-gray-800 text-white dark:bg-gray-200 dark:hover:bg-gray-300'
                     )}
                     aria-label="Send message"
                 >
-                    <ArrowUp size={20} className={cn(isLoading || (!inputValue.trim() && !uploadedImage) ? 'text-gray-500' : 'text-white')} />
+                    <ArrowUp size={20} className={cn(isLoading || (!inputValue.trim() && !uploadedImage) ? 'text-gray-500' : 'text-white dark:text-black')} />
                 </button>
                )}
             </div>
@@ -1267,11 +1290,11 @@ Your output must strictly follow this 2-image format. Accompany the images with 
       {/* Error Modal */}
       {showErrorModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-2xl shadow-xl max-w-md w-full">
-            <h2 className="text-xl font-semibold text-red-600 mb-4">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl max-w-md w-full">
+            <h2 className="text-xl font-semibold text-red-600 dark:text-red-500 mb-4">
               An Error Occurred
             </h2>
-            <p className="text-gray-700 mb-6">{errorMessage}</p>
+            <p className="text-gray-700 dark:text-gray-300 mb-6">{errorMessage}</p>
             <button
               onClick={() => setShowErrorModal(false)}
               className="w-full bg-red-500 text-white py-3 rounded-xl hover:bg-red-600 transition-colors"
