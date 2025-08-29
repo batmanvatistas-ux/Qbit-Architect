@@ -59,7 +59,7 @@ const useAutoResizeTextarea = ({minHeight = 24, maxHeight = 200}) => {
 // Type Definitions
 type Part = {
   text?: string;
-  plan2D?: string;
+  plans2D?: string[];
   plan3D?: string;
 };
 
@@ -93,70 +93,57 @@ const SUGGESTIONS = [
     "A futuristic skyscraper with a unique geometric shape",
 ];
 
-const PlanCarousel = ({ plan2D, plan3D, exportImage, isDesktop }) => {
-  const [currentPlan, setCurrentPlan] = useState('2D');
+const PlanCarousel = ({ plans2D, plan3D, exportImage, isDesktop }) => {
+  const [currentView, setCurrentView] = useState('2D'); // '2D' or '3D'
+  const [currentFloor, setCurrentFloor] = useState(0);
 
-  if (!plan2D && !plan3D) return null;
+  const has2D = plans2D && plans2D.length > 0;
+  const has3D = !!plan3D;
 
-  // Carousel for both plans
-  if (plan2D && plan3D) {
-    return (
-      <div className="mt-2 w-full max-w-lg relative group">
-        <img
-          src={currentPlan === '2D' ? plan2D : plan3D}
-          alt={currentPlan === '2D' ? '2D Plan' : '3D View'}
-          className="rounded-xl w-full aspect-[4/3] object-cover bg-gray-100"
-        />
-        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-xs font-semibold px-2 py-1 rounded-full">
-          {currentPlan === '2D' ? '2D Floor Plan' : '3D Exterior View'}
-        </div>
-        <button
-          onClick={() => exportImage(currentPlan === '2D' ? plan2D : plan3D, `${currentPlan}_Plan.png`)}
-          className={cn(
-            "absolute top-2 right-2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all",
-            isDesktop ? "opacity-0 group-hover:opacity-100" : "opacity-100"
-          )}
-          aria-label={`Download ${currentPlan} Plan`}
-        >
-          <Download size={16} />
-        </button>
-        <button
-          onClick={() => setCurrentPlan('2D')}
-          disabled={currentPlan === '2D'}
-          className={cn(
-            "absolute top-1/2 left-2 -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all disabled:opacity-20 disabled:cursor-not-allowed",
-            isDesktop ? "opacity-0 group-hover:opacity-100" : "opacity-100"
-          )}
-          aria-label="Show 2D Plan"
-        >
-          <ChevronLeft size={20} />
-        </button>
-        <button
-          onClick={() => setCurrentPlan('3D')}
-          disabled={currentPlan === '3D'}
-          className={cn(
-            "absolute top-1/2 right-2 -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all disabled:opacity-20 disabled:cursor-not-allowed",
-            isDesktop ? "opacity-0 group-hover:opacity-100" : "opacity-100"
-          )}
-          aria-label="Show 3D View"
-        >
-          <ChevronRight size={20} />
-        </button>
-      </div>
-    );
-  }
+  // Effect to set initial state and handle data changes
+  useEffect(() => {
+    if (has2D) {
+      setCurrentView('2D');
+      setCurrentFloor(0);
+    } else if (has3D) {
+      setCurrentView('3D');
+    }
+  }, [plans2D, plan3D]);
 
-  // Fallback for only one plan
-  const plan = plan2D || plan3D;
-  const planType = plan2D ? '2D' : '3D';
-  const planLabel = plan2D ? '2D Plan' : '3D View';
+  if (!has2D && !has3D) return null;
+
+  const numFloors = has2D ? plans2D.length : 0;
+  
+  const currentImage = currentView === '2D' && has2D ? plans2D[currentFloor] : plan3D;
+  
+  const getFloorLabel = (index) => {
+    if (numFloors <= 1) return '2D Floor Plan';
+    if (index === 0) return 'Ground Floor';
+    return `Floor ${index + 1}`;
+  };
+
+  const planLabel = currentView === '2D' ? (has2D ? getFloorLabel(currentFloor) : '2D Floor Plan') : '3D Exterior View';
 
   return (
     <div className="mt-2 w-full max-w-lg relative group">
-      <img src={plan} alt={planLabel} className="rounded-xl w-full aspect-[4/3] object-cover bg-gray-100"/>
-      <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-xs font-semibold px-2 py-1 rounded-full">{planLabel}</div>
+      {/* Image Display */}
+      <img
+        src={currentImage}
+        alt={planLabel}
+        className="rounded-xl w-full aspect-[4/3] object-cover bg-gray-100"
+      />
+      
+      {/* Label */}
+      <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1.5">
+          {planLabel}
+          {currentView === '2D' && numFloors > 1 && (
+            <span className="text-gray-300">({currentFloor + 1}/{numFloors})</span>
+          )}
+      </div>
+
+      {/* Download Button */}
       <button
-        onClick={() => exportImage(plan, `${planType}_Plan.png`)}
+        onClick={() => exportImage(currentImage, `${planLabel.replace(/\s+/g, '_')}.png`)}
         className={cn(
           "absolute top-2 right-2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all",
           isDesktop ? "opacity-0 group-hover:opacity-100" : "opacity-100"
@@ -165,6 +152,58 @@ const PlanCarousel = ({ plan2D, plan3D, exportImage, isDesktop }) => {
       >
         <Download size={16} />
       </button>
+
+      {/* Floor Navigation Arrows (only for multi-floor 2D view) */}
+      {currentView === '2D' && has2D && numFloors > 1 && (
+        <>
+          <button
+            onClick={() => setCurrentFloor((prev) => (prev - 1 + numFloors) % numFloors)}
+            className={cn(
+              "absolute top-1/2 left-2 -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all",
+              isDesktop ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+            )}
+            aria-label="Previous Floor"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <button
+            onClick={() => setCurrentFloor((prev) => (prev + 1) % numFloors)}
+            className={cn(
+              "absolute top-1/2 right-2 -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-700 hover:bg-white transition-all",
+              isDesktop ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+            )}
+            aria-label="Next Floor"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </>
+      )}
+
+      {/* View Switcher (2D/3D) */}
+      {has2D && has3D && (
+        <div className={cn("absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm p-1 rounded-full flex items-center gap-1 transition-opacity",
+          isDesktop ? "opacity-0 group-hover:opacity-100" : "opacity-100")
+        }>
+          <button 
+            onClick={() => setCurrentView('2D')} 
+            className={cn(
+              'px-4 py-1.5 text-xs font-semibold rounded-full transition-colors',
+              currentView === '2D' ? 'bg-white text-black' : 'text-white hover:bg-white/20'
+            )}
+          >
+            2D Plan
+          </button>
+          <button 
+            onClick={() => setCurrentView('3D')} 
+            className={cn(
+              'px-4 py-1.5 text-xs font-semibold rounded-full transition-colors',
+              currentView === '3D' ? 'bg-white text-black' : 'text-white hover:bg-white/20'
+            )}
+          >
+            3D View
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -359,22 +398,24 @@ export default function Home() {
         }
         // For a reply, add the images from the message being replied to
         if (replyingToMessage) {
-            const imageParts = replyingToMessage.parts.filter(p => p.plan2D || p.plan3D);
-            for (const part of imageParts) {
-                const imgSrc = part.plan2D || part.plan3D;
-                if(imgSrc){
-                    const { mimeType, data } = dataURLtoBase64(imgSrc);
-                    if (mimeType && data) {
-                        geminiParts.push({ inlineData: { mimeType, data } });
+            for (const part of replyingToMessage.parts) {
+                if (part.plans2D) {
+                    for (const p2d of part.plans2D) {
+                        const { mimeType, data } = dataURLtoBase64(p2d);
+                        if (mimeType && data) geminiParts.push({ inlineData: { mimeType, data } });
                     }
+                }
+                if (part.plan3D) {
+                    const { mimeType, data } = dataURLtoBase64(part.plan3D);
+                    if (mimeType && data) geminiParts.push({ inlineData: { mimeType, data } });
                 }
             }
         }
         
         const userParts: Part[] = [];
         if (userMessageText) userParts.push({ text: userMessageText });
-        // Use plan2D for user-uploaded image preview
-        if (uploadedImage) userParts.push({ plan2D: uploadedImage });
+        // Use plans2D for user-uploaded image preview
+        if (uploadedImage) userParts.push({ plans2D: [uploadedImage] });
 
         const currentUserMessage: ChatMessage = { role: 'user', parts: userParts };
         historyForGeneration = [...chatHistory, currentUserMessage];
@@ -390,26 +431,28 @@ export default function Home() {
     try {
         const architectSystemInstruction = `You are Qbit Architect, a world-class AI specializing in generating architectural designs. Your primary function is to create and present architectural plans.
 
-**CRITICAL INSTRUCTIONS:** For any user request that involves designing a building, house, structure, or plan, you MUST generate and output exactly TWO images in the following specific formats:
+**CRITICAL INSTRUCTIONS:** For any user request that involves designing a building, house, structure, or plan, you MUST generate and output a set of images in the following specific formats:
 
-1.  **IMAGE 1: 2D Floor Plan Blueprint.**
-    *   **FORMAT:** This MUST be a top-down, 2D architectural blueprint.
+1.  **2D Floor Plan Blueprints.**
+    *   For any multi-story building, you MUST generate a separate, top-down 2D floor plan blueprint for EACH floor (e.g., Ground Floor, First Floor, etc.). For single-story structures, generate one 2D floor plan.
+    *   **FORMAT:** Each plan MUST be a top-down, 2D architectural blueprint.
     *   **VIEW:** Strictly an orthographic, top-down view. NO 3D perspective, NO isometric views, NO exterior photos.
-    *   **CONTENT:** It must clearly detail the internal layout, including all rooms, walls, doors, windows, and furniture.
-    *   **STYLE:** The plan should be colored and furnished to be easily understandable and to match the style of the 3D rendering. Think of a professional, modern architectural blueprint.
+    *   **CONTENT:** It must clearly detail the internal layout for its respective floor, including all rooms, walls, doors, windows, and furniture.
+    *   **STYLE:** Plans should be colored and furnished to be easily understandable and to match the style of the 3D rendering.
 
-2.  **IMAGE 2: 3D Exterior Rendering.**
-    *   **FORMAT:** This MUST be a photorealistic 3D rendering of the building's exterior.
+2.  **3D Exterior Rendering.**
+    *   **FORMAT:** You must generate ONE and only ONE photorealistic 3D rendering of the building's exterior.
     *   **VIEW:** A perspective view that showcases the building's design and materials.
-    *   **CONSISTENCY:** This 3D rendering MUST be an accurate, realistic representation of the 2D floor plan blueprint. The layout, window placements, doors, and overall structure must match exactly.
+    *   **CONSISTENCY:** This 3D rendering MUST be an accurate, realistic representation of the combined 2D floor plans. The layout, window placements, doors, and overall structure must match exactly.
 
-**OUTPUT ORDER:** You MUST always output the 2D Floor Plan Blueprint (IMAGE 1) first, followed by the 3D Exterior Rendering (IMAGE 2).
+**OUTPUT ORDER:** You MUST always output all 2D Floor Plan Blueprints first (from the lowest floor to the highest), followed by the single 3D Exterior Rendering as the final image.
 
 Accompany the images with a brief, clear, and well-formatted description of the design using markdown. If a user is just chatting and not requesting a design, you may respond with only text.`;
         const chatSystemInstruction = `You are Qbit, a helpful and creative AI assistant specializing in architectural design. Engage in a friendly, conversational manner. Answer questions and provide ideas about architecture. If the user explicitly asks for a design, floor plan, or rendering, you MUST follow these design generation rules:
-1.  **Generate Two Images:** A 2D floor plan blueprint and a 3D exterior rendering.
-2.  **2D Plan:** Must be a colored, top-down blueprint showing the internal layout. No perspective views.
-3.  **3D Rendering:** Must be a photorealistic exterior view that accurately matches the 2D blueprint.
+1.  **Generate Plans:** Create 2D floor plans and one 3D exterior rendering.
+2.  **2D Plans:** For multi-story buildings, provide a separate top-down blueprint for EACH floor. For single-story buildings, provide one. The plans must show the internal layout with furniture. No perspective views.
+3.  **3D Rendering:** Provide a single, photorealistic exterior view that accurately matches the 2D blueprints.
+4.  **Output Order:** Always output all 2D plans first (lowest to highest floor), followed by the 3D rendering.
 Always use markdown for clear text formatting.`;
 
         const systemInstruction = mode === 'architect' ? architectSystemInstruction : chatSystemInstruction;
@@ -443,15 +486,17 @@ Always use markdown for clear text formatting.`;
         if (textResponse) {
             modelResponseParts.push({ text: textResponse });
         }
-
-        if (imageResponses.length >= 2) {
-            // Per the system instruction, the model should return 2D then 3D.
-            const plan2D = imageResponses[0];
-            const plan3D = imageResponses[1];
-            modelResponseParts.push({ plan2D, plan3D });
-        } else if (imageResponses.length === 1) {
-            // Graceful fallback if the model only returns one image
-            modelResponseParts.push({ plan2D: imageResponses[0] });
+        
+        if (imageResponses.length > 0) {
+            if (imageResponses.length === 1) {
+                // If only one image, assume it's a 2D plan
+                modelResponseParts.push({ plans2D: imageResponses });
+            } else {
+                // Last image is 3D, all others are 2D floors
+                const plan3D = imageResponses.pop(); // remove and get last element
+                const plans2D = imageResponses; // all remaining elements
+                modelResponseParts.push({ plans2D, plan3D });
+            }
         }
         
         if (modelResponseParts.length === 0) {
@@ -485,7 +530,7 @@ Always use markdown for clear text formatting.`;
   
   const ChatBubble = ({msg, index, isDesktop}) => {
     const isUser = msg.role === 'user';
-    const hasGenerations = msg.parts.some(p => p.plan2D || p.plan3D);
+    const hasGenerations = msg.parts.some(p => (p.plans2D && p.plans2D.length > 0) || p.plan3D);
 
     return (
       <div className={cn('flex w-full mb-2', isUser ? 'justify-end' : 'justify-start')}>
@@ -521,9 +566,9 @@ Always use markdown for clear text formatting.`;
                 )}
                 
                 {/* Images */}
-                {(part.plan2D || part.plan3D) && (
+                {(part.plans2D || part.plan3D) && (
                   <PlanCarousel
-                    plan2D={part.plan2D}
+                    plans2D={part.plans2D}
                     plan3D={part.plan3D}
                     exportImage={exportImage}
                     isDesktop={isDesktop}
@@ -599,7 +644,7 @@ const ExploreViewModal = ({ message, onClose }) => {
         };
     }, [isLoading]);
     
-    const plan2D = message.parts.find(p => p.plan2D)?.plan2D;
+    const plan2D = message.parts.find(p => p.plans2D && p.plans2D.length > 0)?.plans2D[0];
 
     const generateMarkedImage = (originalImageSrc: string, x: number, y: number): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -759,7 +804,7 @@ const ExploreViewModal = ({ message, onClose }) => {
     const [brushColor, setBrushColor] = useState('#EF4444'); // red-500
     const [history, setHistory] = useState<ImageData[]>([]);
 
-    const plan2D = message.parts.find(p => p.plan2D)?.plan2D;
+    const plan2D = message.parts.find(p => p.plans2D && p.plans2D.length > 0)?.plans2D[0];
 
     // Initialize canvas with the 2D plan
     useEffect(() => {
@@ -811,11 +856,26 @@ const ExploreViewModal = ({ message, onClose }) => {
         }
     }
 
+    const getCanvasPoint = (nativeEvent) => {
+        if (!canvasRef.current) return null;
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+    
+        return {
+            x: nativeEvent.offsetX * scaleX,
+            y: nativeEvent.offsetY * scaleY
+        };
+    };
+
     const startDrawing = ({ nativeEvent }) => {
-        const { offsetX, offsetY } = nativeEvent;
-        if (!contextRef.current) return;
+        const point = getCanvasPoint(nativeEvent);
+        if (!contextRef.current || !point) return;
+    
         contextRef.current.beginPath();
-        contextRef.current.moveTo(offsetX, offsetY);
+        contextRef.current.moveTo(point.x, point.y);
         setIsDrawing(true);
     };
 
@@ -828,11 +888,13 @@ const ExploreViewModal = ({ message, onClose }) => {
 
     const draw = ({ nativeEvent }) => {
         if (!isDrawing || !contextRef.current) return;
-        const { offsetX, offsetY } = nativeEvent;
+        const point = getCanvasPoint(nativeEvent);
+        if (!point) return;
+    
         contextRef.current.lineCap = 'round';
         contextRef.current.strokeStyle = brushColor;
         contextRef.current.lineWidth = brushSize;
-        contextRef.current.lineTo(offsetX, offsetY);
+        contextRef.current.lineTo(point.x, point.y);
         contextRef.current.stroke();
     };
     
@@ -854,8 +916,9 @@ const ExploreViewModal = ({ message, onClose }) => {
             
             const systemInstruction = `You are an AI Architect revising a design. The user has provided a 2D floor plan with hand-drawn annotations and a text prompt explaining the required changes.
 **YOUR TASK:**
-1.  **Analyze:** Carefully interpret the user's drawings and text description.
-2.  **Revise:** Create a new, revised version of the architectural plan that incorporates all requested changes.
+1.  **Analyze:** Carefully interpret the user's drawings and text description. **Crucially, understand that the user's drawings (e.g., circles, arrows, lines) are annotations to indicate *where* to make a change. DO NOT redraw or "improve" the user's annotations on the final plan. Instead, execute the change described in the text at the location marked by the drawing.**
+2.  **Revise:** Create a new, revised version of the architectural plan that incorporates all requested changes. The final plan should be clean and professional, with no user annotations visible.
+    **IMPORTANT:** Only implement the specific changes requested by the user. Do not alter, add, or remove any other elements of the floor plan. The rest of the design must remain exactly as it was in the original image. For example, if asked to add a closet, add only the closet and do not change the bed.
 3.  **Output:** Generate exactly TWO new images based on the revision:
     *   **IMAGE 1: A revised 2D Floor Plan Blueprint.** This must be a clean, professional, top-down blueprint of the new layout.
     *   **IMAGE 2: A revised 3D Exterior Rendering.** This must be a photorealistic rendering that accurately matches the new 2D blueprint.
@@ -890,7 +953,8 @@ Your output must strictly follow this 2-image format. Accompany the images with 
             if (textResponse) modelResponseParts.push({ text: textResponse });
             
             if (imageResponses.length >= 2) {
-                modelResponseParts.push({ plan2D: imageResponses[0], plan3D: imageResponses[1] });
+                const plan3D = imageResponses.pop();
+                modelResponseParts.push({ plans2D: imageResponses, plan3D });
             } else {
                  throw new Error("The model did not return the required 2D and 3D plans.");
             }
@@ -919,14 +983,14 @@ Your output must strictly follow this 2-image format. Accompany the images with 
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 overflow-y-auto">
               <div className="flex flex-col gap-2">
                  <p className="text-sm text-center text-gray-600">Draw on the 2D plan to mark your changes</p>
-                 <div className="w-full aspect-square bg-gray-100 rounded-lg overflow-hidden border">
+                 <div className="w-full bg-gray-100 rounded-lg overflow-hidden border flex justify-center items-center">
                     <canvas 
                         ref={canvasRef}
                         onMouseDown={startDrawing}
                         onMouseUp={finishDrawing}
                         onMouseMove={draw}
                         onMouseLeave={finishDrawing} // Stop drawing if mouse leaves canvas
-                        className="cursor-crosshair"
+                        className="cursor-crosshair block max-w-full"
                     />
                  </div>
               </div>
